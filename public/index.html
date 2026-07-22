@@ -1,3 +1,7 @@
+// Replace with your actual Render backend URL
+const BACKEND_URL = "https://user-management-backend-0vv1.onrender.com";
+const socket = (typeof io !== 'undefined') ? io(BACKEND_URL) : null;
+
 $(document).ready(function() {
   $('#saveBtn').click(function() {
     const alphaRegex = /^[a-zA-Z\s]+$/;
@@ -8,7 +12,7 @@ $(document).ready(function() {
     const state = $('#state').val().trim();
     const country = $('#country').val().trim();
 
-    // Client-side validations for text fields
+    // Client-side validations for alphabetic text fields
     if (!alphaRegex.test(firstName)) {
       $('#responseMessage').html('<p class="error">First name can only contain letters.</p>');
       return;
@@ -46,15 +50,18 @@ $(document).ready(function() {
     };
 
     $.ajax({
-      url: '/api/users',
+      url: `${BACKEND_URL}/api/users`,
       type: 'POST',
       contentType: 'application/json',
       data: JSON.stringify(formData),
       success: function(response) {
         $('#responseMessage').html('<p class="success">' + response.message + '</p>');
-        if (typeof socket !== 'undefined') {
+        
+        // Task 2: Emit socket event to join "live_users" room
+        if (socket) {
           socket.emit('join_live_users', response.data);
         }
+
         $('#userForm')[0].reset();
       },
       error: function(xhr) {
