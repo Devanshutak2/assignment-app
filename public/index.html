@@ -81,13 +81,15 @@
   </div>
 
   <script>
-    // Detect environment dynamically (Local vs Render Production)
+    // Exact Active Render Backend URL
     const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-      ? 'http://localhost:3000' 
-      : 'https://user-management-backend-0vv1.onrender.com';
+      ? 'http://localhost:10000' 
+      : 'https://user-management-backend-0vv1-7xgt.onrender.com';
 
     // Initialize Socket.io connection to backend
-    const socket = io(BACKEND_URL);
+    const socket = io(BACKEND_URL, {
+      transports: ['websocket', 'polling']
+    });
 
     $(document).ready(function() {
       $('#saveBtn').click(function() {
@@ -146,11 +148,16 @@
           return;
         }
 
+        // Payload formatted to match both flat and nested Mongoose schemas
         const formData = {
           firstName: firstName,
           lastName: lastName,
           mobileNo: mobileNo,
           email: email,
+          street: street,
+          city: city,
+          state: state,
+          country: country,
           address: {
             street: street,
             city: city,
@@ -161,6 +168,8 @@
           password: password
         };
 
+        $('#responseMessage').html('<p style="color: blue;">Saving user...</p>');
+
         // Submit to REST API
         $.ajax({
           url: `${BACKEND_URL}/api/users`,
@@ -168,18 +177,24 @@
           contentType: 'application/json',
           data: JSON.stringify(formData),
           success: function(response) {
-            $('#responseMessage').html('<p class="success">' + response.message + '</p>');
+            const successMsg = response.message || 'User saved successfully!';
+            $('#responseMessage').html('<p class="success">' + successMsg + '</p>');
             
             // Task 2: Join room "live_users" on successful MongoDB insertion
             if (socket) {
-              socket.emit('join_live_users', response.data);
+              socket.emit('join_live_users', response.user || response.data || formData);
             }
 
             $('#userForm')[0].reset();
           },
           error: function(xhr) {
             const errRes = xhr.responseJSON;
-            let errorText = (errRes && errRes.errors) ? errRes.errors.join('<br>') : 'Error saving user details.';
+            let errorText = 'Error saving user details.';
+            if (errRes && errRes.error) {
+              errorText = errRes.error;
+            } else if (errRes && errRes.errors) {
+              errorText = Array.isArray(errRes.errors) ? errRes.errors.join('<br>') : errRes.errors;
+            }
             $('#responseMessage').html('<p class="error">' + errorText + '</p>');
           }
         });
