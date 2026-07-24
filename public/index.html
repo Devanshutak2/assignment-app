@@ -1,74 +1,190 @@
-// Replace with your actual Render backend URL
-const BACKEND_URL = "https://user-management-backend-0vv1.onrender.com";
-const socket = (typeof io !== 'undefined') ? io(BACKEND_URL) : null;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Registration - Task 1 & Task 2</title>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <!-- Socket.io Client CDN -->
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 30px; }
+    .form-group { margin-bottom: 12px; }
+    label { display: inline-block; width: 150px; font-weight: bold; }
+    input { padding: 6px; width: 250px; border: 1px solid #ccc; border-radius: 4px; }
+    button { padding: 8px 16px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    button:hover { background-color: #0056b3; }
+    .error { color: red; margin-top: 10px; font-weight: bold; }
+    .success { color: green; margin-top: 10px; font-weight: bold; }
+    .nav-links { margin-top: 20px; }
+    .nav-links a { color: #007bff; text-decoration: none; margin-right: 15px; }
+    .nav-links a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
 
-$(document).ready(function() {
-  $('#saveBtn').click(function() {
-    const alphaRegex = /^[a-zA-Z\s]+$/;
+  <h2>User Registration Form</h2>
+  <form id="userForm">
+    <div class="form-group">
+      <label>First Name:</label>
+      <input type="text" id="firstName" required>
+    </div>
+    <div class="form-group">
+      <label>Last Name:</label>
+      <input type="text" id="lastName" required>
+    </div>
+    <div class="form-group">
+      <label>Mobile No:</label>
+      <input type="text" id="mobileNo" placeholder="10 digits" required>
+    </div>
+    <div class="form-group">
+      <label>Email ID:</label>
+      <input type="email" id="email" required>
+    </div>
 
-    const firstName = $('#firstName').val().trim();
-    const lastName = $('#lastName').val().trim();
-    const city = $('#city').val().trim();
-    const state = $('#state').val().trim();
-    const country = $('#country').val().trim();
+    <h4>Address Details</h4>
+    <div class="form-group">
+      <label>Street:</label>
+      <input type="text" id="street">
+    </div>
+    <div class="form-group">
+      <label>City:</label>
+      <input type="text" id="city">
+    </div>
+    <div class="form-group">
+      <label>State:</label>
+      <input type="text" id="state">
+    </div>
+    <div class="form-group">
+      <label>Country:</label>
+      <input type="text" id="country">
+    </div>
 
-    // Client-side validations for alphabetic text fields
-    if (!alphaRegex.test(firstName)) {
-      $('#responseMessage').html('<p class="error">First name can only contain letters.</p>');
-      return;
-    }
-    if (!alphaRegex.test(lastName)) {
-      $('#responseMessage').html('<p class="error">Last name can only contain letters.</p>');
-      return;
-    }
-    if (city && !alphaRegex.test(city)) {
-      $('#responseMessage').html('<p class="error">City can only contain letters.</p>');
-      return;
-    }
-    if (state && !alphaRegex.test(state)) {
-      $('#responseMessage').html('<p class="error">State can only contain letters.</p>');
-      return;
-    }
-    if (country && !alphaRegex.test(country)) {
-      $('#responseMessage').html('<p class="error">Country can only contain letters.</p>');
-      return;
-    }
+    <h4>Account Credentials</h4>
+    <div class="form-group">
+      <label>Login ID:</label>
+      <input type="text" id="loginId" placeholder="8 alphanumeric chars" required>
+    </div>
+    <div class="form-group">
+      <label>Password:</label>
+      <input type="password" id="password" placeholder="6+ chars (1 Upper, 1 Lower, 1 Special)" required>
+    </div>
 
-    const formData = {
-      firstName: firstName,
-      lastName: lastName,
-      mobileNo: $('#mobileNo').val().trim(),
-      email: $('#email').val().trim(),
-      address: {
-        street: $('#street').val().trim(),
-        city: city,
-        state: state,
-        country: country
-      },
-      loginId: $('#loginId').val().trim(),
-      password: $('#password').val()
-    };
+    <button type="button" id="saveBtn">Save & Join Live Room</button>
+  </form>
 
-    $.ajax({
-      url: `${BACKEND_URL}/api/users`,
-      type: 'POST',
-      contentType: 'application/json',
-      data: JSON.stringify(formData),
-      success: function(response) {
-        $('#responseMessage').html('<p class="success">' + response.message + '</p>');
-        
-        // Task 2: Emit socket event to join "live_users" room
-        if (socket) {
-          socket.emit('join_live_users', response.data);
+  <div id="responseMessage"></div>
+
+  <div class="nav-links">
+    <a href="live_users.html">🔴 View Live Users Room (Task 2)</a> | 
+    <a href="users.html">📋 View Stored Database Users (Task 1)</a>
+  </div>
+
+  <script>
+    // Detect environment dynamically (Local vs Render Production)
+    const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      ? 'http://localhost:3000' 
+      : 'https://user-management-backend-0vv1.onrender.com';
+
+    // Initialize Socket.io connection to backend
+    const socket = io(BACKEND_URL);
+
+    $(document).ready(function() {
+      $('#saveBtn').click(function() {
+        const alphaRegex = /^[a-zA-Z\s]+$/;
+        const mobileRegex = /^\d{10}$/;
+        const emailRegex = /^\S+@\S+\.\S+$/;
+        const loginRegex = /^[a-zA-Z0-9]{8}$/;
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{6,}$/;
+
+        const firstName = $('#firstName').val().trim();
+        const lastName = $('#lastName').val().trim();
+        const mobileNo = $('#mobileNo').val().trim();
+        const email = $('#email').val().trim();
+        const street = $('#street').val().trim();
+        const city = $('#city').val().trim();
+        const state = $('#state').val().trim();
+        const country = $('#country').val().trim();
+        const loginId = $('#loginId').val().trim();
+        const password = $('#password').val();
+
+        // Client-side validations
+        if (!alphaRegex.test(firstName)) {
+          $('#responseMessage').html('<p class="error">First Name can only contain letters.</p>');
+          return;
+        }
+        if (!alphaRegex.test(lastName)) {
+          $('#responseMessage').html('<p class="error">Last Name can only contain letters.</p>');
+          return;
+        }
+        if (!mobileRegex.test(mobileNo)) {
+          $('#responseMessage').html('<p class="error">Mobile number must be exactly 10 digits.</p>');
+          return;
+        }
+        if (!emailRegex.test(email)) {
+          $('#responseMessage').html('<p class="error">Please enter a valid email address.</p>');
+          return;
+        }
+        if (city && !alphaRegex.test(city)) {
+          $('#responseMessage').html('<p class="error">City can only contain letters.</p>');
+          return;
+        }
+        if (state && !alphaRegex.test(state)) {
+          $('#responseMessage').html('<p class="error">State can only contain letters.</p>');
+          return;
+        }
+        if (country && !alphaRegex.test(country)) {
+          $('#responseMessage').html('<p class="error">Country can only contain letters.</p>');
+          return;
+        }
+        if (!loginRegex.test(loginId)) {
+          $('#responseMessage').html('<p class="error">Login ID must be exactly 8 alphanumeric characters.</p>');
+          return;
+        }
+        if (!passwordRegex.test(password)) {
+          $('#responseMessage').html('<p class="error">Password must be at least 6 characters with 1 uppercase, 1 lowercase, and 1 special character.</p>');
+          return;
         }
 
-        $('#userForm')[0].reset();
-      },
-      error: function(xhr) {
-        const errRes = xhr.responseJSON;
-        let errorText = (errRes && errRes.errors) ? errRes.errors.join('<br>') : 'Error saving user.';
-        $('#responseMessage').html('<p class="error">' + errorText + '</p>');
-      }
+        const formData = {
+          firstName: firstName,
+          lastName: lastName,
+          mobileNo: mobileNo,
+          email: email,
+          address: {
+            street: street,
+            city: city,
+            state: state,
+            country: country
+          },
+          loginId: loginId,
+          password: password
+        };
+
+        // Submit to REST API
+        $.ajax({
+          url: `${BACKEND_URL}/api/users`,
+          type: 'POST',
+          contentType: 'application/json',
+          data: JSON.stringify(formData),
+          success: function(response) {
+            $('#responseMessage').html('<p class="success">' + response.message + '</p>');
+            
+            // Task 2: Join room "live_users" on successful MongoDB insertion
+            if (socket) {
+              socket.emit('join_live_users', response.data);
+            }
+
+            $('#userForm')[0].reset();
+          },
+          error: function(xhr) {
+            const errRes = xhr.responseJSON;
+            let errorText = (errRes && errRes.errors) ? errRes.errors.join('<br>') : 'Error saving user details.';
+            $('#responseMessage').html('<p class="error">' + errorText + '</p>');
+          }
+        });
+      });
     });
-  });
-});
+  </script>
+</body>
+</html>
