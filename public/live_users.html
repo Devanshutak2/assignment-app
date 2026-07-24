@@ -46,28 +46,34 @@
       transports: ['websocket', 'polling']
     });
 
-    // Fetch existing stored users first
+    // 1. Load initial user list on room join
     $.get(`${BACKEND_URL}/api/users`, function(users) {
-      if (users && users.length > 0) {
+      const usersList = Array.isArray(users) ? users : (users.data || users.users || []);
+      if (usersList && usersList.length > 0) {
         $('#liveUsersBody').empty();
-        users.forEach(addUserToTable);
+        usersList.forEach(addUserToTable);
       }
     });
 
-    // Listen for real-time broadcasts
-    socket.on('userJoined', function(user) {
+    // 2. Listen for both real-time socket events
+    socket.on('userJoined', handleIncomingUser);
+    socket.on('join_live_users', handleIncomingUser);
+
+    function handleIncomingUser(user) {
       if ($('#liveUsersBody td').length <= 1) {
         $('#liveUsersBody').empty();
       }
       addUserToTable(user);
-    });
+    }
 
     function addUserToTable(user) {
+      if (!user) return;
+      
       const name = (user.firstName && user.lastName) 
         ? `${user.firstName} ${user.lastName}` 
         : (user.name || 'N/A');
 
-      const id = user._id || socket.id || 'Live User';
+      const id = user._id || user.loginId || socket.id || 'Live User';
       const email = user.email || 'N/A';
 
       const row = `
