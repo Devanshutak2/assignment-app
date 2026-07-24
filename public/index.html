@@ -81,13 +81,11 @@
   </div>
 
   <script>
-    // DYNAMIC BACKEND DETECTOR (Fixes hardcoded mismatch permanently)
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    
-    // If running on Vercel/Render, pick exact current domain or production Render server
-    const BACKEND_URL = isLocal 
-      ? 'http://localhost:10000' 
-      : 'https://user-management-backend-0vv1-7xgt.onrender.com';
+   const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+const BACKEND_URL = isLocal 
+  ? 'http://localhost:10000' 
+  : 'https://user-management-backend-0vv1-7xgt.onrender.com';
 
     // Initialize Socket.io
     const socket = io(BACKEND_URL, {
