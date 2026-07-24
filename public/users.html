@@ -2,21 +2,26 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Stored Users Data</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stored Users Data - Task 1</title>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <style>
     body { font-family: Arial, sans-serif; margin: 30px; }
-    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
     th { background-color: #f2f2f2; }
+    tr:nth-child(even) { background-color: #f9f9f9; }
+    .back-btn { display: inline-block; margin-bottom: 15px; color: #007bff; text-decoration: none; font-weight: bold; }
+    .back-btn:hover { text-decoration: underline; }
+    .loading { color: #666; font-style: italic; }
   </style>
 </head>
 <body>
 
   <h2>Stored Users Data</h2>
-  <a href="index.html">Back to Registration Form</a>
+  <a href="index.html" class="back-btn">← Back to Registration Form</a>
 
-  <table id="usersTable">
+  <table>
     <thead>
       <tr>
         <th>Name</th>
@@ -28,40 +33,70 @@
         <th>Last Updated On</th>
       </tr>
     </thead>
-    <tbody>
-      <!-- Rows populated dynamically via jQuery AJAX -->
+    <tbody id="usersTableBody">
+      <tr>
+        <td colspan="7" class="loading">Loading stored users...</td>
+      </tr>
     </tbody>
   </table>
 
   <script>
+    // Environment & Active Backend URL Detection
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    
+    const BACKEND_URL = isLocal 
+      ? 'http://localhost:10000' 
+      : 'https://user-management-backend-0vv1-7xgt.onrender.com';
+
     $(document).ready(function() {
+      // Fetch stored users from MongoDB
       $.ajax({
-        url: '/api/users',
+        url: `${BACKEND_URL}/api/users`,
         type: 'GET',
-        dataType: 'json',
-        success: function(response) {
-          if (response.success && response.data.length > 0) {
-            let tableRows = '';
-            $.each(response.data, function(index, user) {
-              const fullAddress = `${user.address.street || ''}, ${user.address.city || ''}, ${user.address.state || ''}, ${user.address.country || ''}`;
-              
-              tableRows += `<tr>
-                <td>${user.firstName} ${user.lastName}</td>
-                <td>${user.mobileNo}</td>
-                <td>${user.email}</td>
-                <td>${fullAddress}</td>
-                <td>${user.loginId}</td>
-                <td>${new Date(user.creationTime).toLocaleString()}</td>
-                <td>${new Date(user.lastUpdatedOn).toLocaleString()}</td>
-              </tr>`;
-            });
-            $('#usersTable tbody').html(tableRows);
-          } else {
-            $('#usersTable tbody').html('<tr><td colspan="7">No records found.</td></tr>');
+        success: function(users) {
+          const tbody = $('#usersTableBody');
+          tbody.empty();
+
+          if (!users || users.length === 0) {
+            tbody.append('<tr><td colspan="7">No users found in database.</td></tr>');
+            return;
           }
+
+          users.forEach(function(user) {
+            // Handle name formatting
+            const fullName = (user.firstName && user.lastName) 
+              ? `${user.firstName} ${user.lastName}` 
+              : (user.name || 'N/A');
+
+            // Handle address formatting (flat vs nested schema)
+            let fullAddress = 'N/A';
+            if (user.address) {
+              const { street, city, state, country } = user.address;
+              fullAddress = [street, city, state, country].filter(Boolean).join(', ');
+            } else if (user.street || user.city || user.state || user.country) {
+              fullAddress = [user.street, user.city, user.state, user.country].filter(Boolean).join(', ');
+            }
+
+            const creationTime = user.createdAt ? new Date(user.createdAt).toLocaleString() : 'N/A';
+            const updatedAt = user.updatedAt ? new Date(user.updatedAt).toLocaleString() : creationTime;
+
+            const row = `
+              <tr>
+                <td>${fullName}</td>
+                <td>${user.mobileNo || 'N/A'}</td>
+                <td>${user.email || 'N/A'}</td>
+                <td>${fullAddress}</td>
+                <td>${user.loginId || 'N/A'}</td>
+                <td>${creationTime}</td>
+                <td>${updatedAt}</td>
+              </tr>
+            `;
+            tbody.append(row);
+          });
         },
-        error: function() {
-          alert('Failed to fetch users data.');
+        error: function(xhr, status, error) {
+          console.error('Error fetching users:', error);
+          $('#usersTableBody').html('<tr><td colspan="7" style="color:red;">Failed to load user data from backend server.</td></tr>');
         }
       });
     });
