@@ -81,13 +81,15 @@
   </div>
 
   <script>
-   const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    // Environment & Active Backend URL Detection
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    
+    // Automatically routes to your active Render instance
+    const BACKEND_URL = isLocal 
+      ? 'http://localhost:10000' 
+      : 'https://user-management-backend-0vv1-7xgt.onrender.com';
 
-const BACKEND_URL = isLocal 
-  ? 'http://localhost:10000' 
-  : 'https://user-management-backend-0vv1-7xgt.onrender.com';
-
-    // Initialize Socket.io
+    // Initialize Socket.io connection to Render backend
     const socket = io(BACKEND_URL, {
       transports: ['websocket', 'polling']
     });
@@ -149,6 +151,7 @@ const BACKEND_URL = isLocal
           return;
         }
 
+        // Standardized data payload
         const formData = {
           firstName: firstName,
           lastName: lastName,
@@ -170,11 +173,9 @@ const BACKEND_URL = isLocal
 
         $('#responseMessage').html('<p style="color: blue;">Saving user...</p>');
 
-        // Submit to REST API using relative route if hosted together or full URL
-        const targetApiUrl = isLocal ? 'http://localhost:10000/api/users' : `${BACKEND_URL}/api/users`;
-
+        // Submit to Backend API
         $.ajax({
-          url: targetApiUrl,
+          url: `${BACKEND_URL}/api/users`,
           type: 'POST',
           contentType: 'application/json',
           data: JSON.stringify(formData),
@@ -182,7 +183,7 @@ const BACKEND_URL = isLocal
             const successMsg = response.message || 'User saved successfully!';
             $('#responseMessage').html('<p class="success">' + successMsg + '</p>');
             
-            // Task 2: Join live room
+            // Task 2: Emit Socket event upon saving
             if (socket) {
               socket.emit('join_live_users', response.user || response.data || formData);
             }
