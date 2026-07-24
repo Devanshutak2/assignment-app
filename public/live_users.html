@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Task 2 - Live Users Room</title>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 30px; }
+    table { border-collapse: collapse; width: 80%; margin-top: 20px; }
+    th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+    th { background-color: #007bff; color: white; }
+    .clickable { color: #007bff; cursor: pointer; text-decoration: underline; font-weight: bold; }
+    
+    /* Popup Modal Styling */
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
+    .modal-content { background: #fff; margin: 10% auto; padding: 25px; width: 420px; border-radius: 8px; position: relative; }
+    .close-btn { position: absolute; right: 15px; top: 10px; font-size: 24px; cursor: pointer; color: red; }
+  </style>
+</head>
+<body>
+
+  <h2>Live Users Room ("live_users")</h2>
+  <a href="index.html">← Back to Registration Form</a> | <a href="users.html">All Stored Users</a>
+
+  <table id="liveUsersTable">
+    <thead>
+      <tr>
+        <th>Socket ID (Click for Info)</th>
+        <th>User Email (Click for Info)</th>
+        <th>Name</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Populated dynamically via Socket.io -->
+    </tbody>
+  </table>
+
+  <!-- Popup Modal -->
+  <div id="userModal" class="modal">
+    <div class="modal-content">
+      <span class="close-btn">&times;</span>
+      <h3>User Information</h3>
+      <div id="modalDetails">Loading...</div>
+    </div>
+  </div>
+
+  <script>
+    // Points dynamically to current host or Render backend
+    const BACKEND_URL = window.location.hostname === 'localhost' 
+      ? 'http://localhost:3000' 
+      : 'https://user-management-backend-0vv1.onrender.com';
+
+    const socket = io(BACKEND_URL);
+
+    socket.on('connect', () => {
+      socket.emit('register_viewer');
+    });
+
+    // Render table rows on real-time update
+    socket.on('update_live_users', function(users) {
+      let rows = '';
+      if (!users || users.length === 0) {
+        rows = '<tr><td colspan="3">No active users currently in room.</td></tr>';
+      } else {
+        users.forEach(user => {
+          rows += `<tr>
+            <td><span class="clickable fetch-details" data-email="${user.email}">${user.socketId}</span></td>
+            <td><span class="clickable fetch-details" data-email="${user.email}">${user.email}</span></td>
+            <td>${user.name}</td>
+          </tr>`;
+        });
+      }
+      $('#liveUsersTable tbody').html(rows);
+    });
+
+    // Click handler for Socket ID / Email ID to open Popup Modal
+    $(document).on('click', '.fetch-details', function() {
+      const email = $(this).data('email');
+      $('#modalDetails').html('Fetching data from webservice...');
+      $('#userModal').show();
+
+      $.ajax({
+        url: `${BACKEND_URL}/api/users/by-email/${encodeURIComponent(email)}`,
+        type: 'GET',
+        success: function(res) {
+          if (res.success && res.data) {
+            const u = res.data;
+            const addr = `${u.address.street || ''}, ${u.address.city || ''}, ${u.address.state || ''}, ${u.address.country || ''}`;
+            
+            const html = `
+              <p><strong>First Name:</strong> ${u.firstName}</p>
+              <p><strong>Last Name:</strong> ${u.lastName}</p>
+              <p><strong>Email ID:</strong> ${u.email}</p>
+              <p><strong>Mobile No:</strong> ${u.mobileNo}</p>
+              <p><strong>Address:</strong> ${addr}</p>
+              <p><strong>Login ID:</strong> ${u.loginId}</p>
+              <p><strong>Creation Time:</strong> ${new Date(u.creationTime).toLocaleString()}</p>
+              <p><strong>Last Updated On:</strong> ${new Date(u.lastUpdatedOn).toLocaleString()}</p>
+            `;
+            $('#modalDetails').html(html);
+          } else {
+            $('#modalDetails').html('<p style="color:red;">User details not found.</p>');
+          }
+        },
+        error: function() {
+          $('#modalDetails').html('<p style="color:red;">Failed to fetch user details.</p>');
+        }
+      });
+    });
+
+    $('.close-btn').click(function() { $('#userModal').hide(); });
+    $(window).click(function(e) { if ($(e.target).is('#userModal')) $('#userModal').hide(); });
+  </script>
+</body>
+</html>
